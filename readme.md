@@ -4,7 +4,7 @@ tueue is tui pueue status monitor.
 
 <img src="https://raw.githubusercontent.com/amatagonsk/tueue/master/img/tueue.avif" width="100%" />
 
-(if not animated image, youtube link [here](todo))
+(if not animated image, youtube link [here](https://youtu.be/wGAfdNO8TKk))
 
 ## features
 
