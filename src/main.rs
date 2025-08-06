@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use ansi_to_tui::IntoText;
 use color_eyre::Result;
 use ratatui::{
     DefaultTerminal, Frame,
@@ -23,7 +24,7 @@ fn main() -> Result<()> {
 pub struct App {
     show_popup: bool,
     last_tick: Instant,
-    command_output_str: String,
+    command_output: Vec<u8>,
     is_windows: bool,
     pueue_args: String,
 
@@ -49,7 +50,7 @@ impl App {
         Self {
             show_popup: false,
             last_tick: Instant::now(),
-            command_output_str: String::new(),
+            command_output: Vec::new(),
             is_windows: if cfg!(target_os = "windows") {
                 true
             } else {
@@ -191,26 +192,26 @@ impl App {
         self.last_tick = Instant::now();
         let output = if self.is_windows {
             Command::new("cmd")
-                .args(["/C", &format!("pueue status {}", self.pueue_args)])
+                .args(["/C", &format!("pueue --color always status {}", self.pueue_args)])
                 .output()
                 .expect("failed to execute process")
         } else {
             Command::new("sh")
-                .args(["-c", &format!("pueue status {}", self.pueue_args)])
+                .args(["-c", &format!("pueue --color always status {}", self.pueue_args)])
                 .output()
                 .expect("failed to execute process")
         };
 
-        self.command_output_str = String::from_utf8(output.stdout).unwrap();
+        self.command_output = output.stdout;
         self.vertical_scroll_state = self
             .vertical_scroll_state
-            .content_length(self.command_output_str.lines().count());
+            .content_length(String::from_utf8(self.command_output.clone()).unwrap().lines().count());
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
-        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Percentage(90)]);
+        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Percentage(99)]);
         let [instructions, content] = vertical.areas(area);
 
         let text = if self.show_popup {
@@ -221,7 +222,7 @@ impl App {
         let paragraph = Paragraph::new(text).centered().wrap(Wrap { trim: true });
         frame.render_widget(paragraph, instructions);
 
-        let block = Paragraph::new(self.command_output_str.clone())
+        let block = Paragraph::new(self.command_output.into_text().unwrap())
             .scroll((self.vertical_scroll as u16, 0));
         frame.render_widget(block, content);
 
