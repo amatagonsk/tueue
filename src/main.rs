@@ -5,11 +5,13 @@ use std::{
 
 use ansi_to_tui::IntoText;
 use color_eyre::Result;
+use fast_strip_ansi::*;
 use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    layout::{Constraint, Flex, Layout, Position, Rect},
+    layout::{Constraint, Flex, Layout, Margin, Position, Rect},
     style::{Color, Style},
+    symbols::scrollbar::Set,
     widgets::{Block, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
 };
 
@@ -36,7 +38,9 @@ pub struct App {
     input_mode: InputMode,
 
     pub vertical_scroll_state: ScrollbarState,
+    pub horizontal_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
+    pub horizontal_scroll: usize,
 }
 
 #[derive(PartialEq, Eq)]
@@ -62,6 +66,8 @@ impl App {
             input_mode: InputMode::Normal,
             vertical_scroll_state: ScrollbarState::new(0),
             vertical_scroll: 0,
+            horizontal_scroll_state: ScrollbarState::new(0),
+            horizontal_scroll: 0,
         }
     }
 
@@ -77,30 +83,19 @@ impl App {
                                 KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                                 KeyCode::Char('i') => self.toggle_popup(),
 
-                                KeyCode::Char('j') | KeyCode::Down => {
-                                    self.vertical_scroll = self.vertical_scroll.saturating_add(1);
-                                    self.vertical_scroll_state =
-                                        self.vertical_scroll_state.position(self.vertical_scroll);
-                                }
-                                KeyCode::Char('k') | KeyCode::Up => {
-                                    self.vertical_scroll = self.vertical_scroll.saturating_sub(1);
-                                    self.vertical_scroll_state =
-                                        self.vertical_scroll_state.position(self.vertical_scroll);
-                                }
-                                KeyCode::PageDown => {
-                                    self.vertical_scroll = self.vertical_scroll.saturating_add(20);
-                                    self.vertical_scroll_state =
-                                        self.vertical_scroll_state.position(self.vertical_scroll);
-                                }
-                                KeyCode::PageUp => {
-                                    self.vertical_scroll = self.vertical_scroll.saturating_sub(20);
-                                    self.vertical_scroll_state =
-                                        self.vertical_scroll_state.position(self.vertical_scroll);
-                                }
+                                KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
+                                KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
+                                KeyCode::PageDown => self.scroll_down(Some(20)),
+                                KeyCode::PageUp => self.scroll_up(Some(20)),
+
+                                KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
+                                KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
+                                KeyCode::Home => self.scroll_left(Some(20)),
+                                KeyCode::End => self.scroll_right(Some(20)),
                                 _ => {}
                             },
                             InputMode::Editing => match key.code {
-                                KeyCode::Enter => self.submit_message(),
+                                KeyCode::Enter => self.submit_pueue(),
                                 KeyCode::Char(to_insert) => self.enter_char(to_insert),
                                 KeyCode::Backspace => self.delete_char(),
                                 KeyCode::Left => self.move_cursor_left(),
@@ -119,7 +114,39 @@ impl App {
         }
     }
 
-    fn submit_message(&mut self) {
+    fn scroll_down(&mut self, scroll_val: Option<i8>) {
+        self.vertical_scroll = self
+            .vertical_scroll
+            .saturating_add(scroll_val.unwrap_or(1) as usize);
+        self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
+    }
+
+    fn scroll_up(&mut self, scroll_val: Option<i8>) {
+        self.vertical_scroll = self
+            .vertical_scroll
+            .saturating_sub(scroll_val.unwrap_or(1) as usize);
+        self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
+    }
+
+    fn scroll_left(&mut self, scroll_val: Option<i8>) {
+        self.horizontal_scroll = self
+            .horizontal_scroll
+            .saturating_sub(scroll_val.unwrap_or(1) as usize);
+        self.horizontal_scroll_state = self
+            .horizontal_scroll_state
+            .position(self.horizontal_scroll);
+    }
+
+    fn scroll_right(&mut self, scroll_val: Option<i8>) {
+        self.horizontal_scroll = self
+            .horizontal_scroll
+            .saturating_add(scroll_val.unwrap_or(1) as usize);
+        self.horizontal_scroll_state = self
+            .horizontal_scroll_state
+            .position(self.horizontal_scroll);
+    }
+
+    fn submit_pueue(&mut self) {
         self.pueue_args = self.input.clone();
         self.run_command();
         self.toggle_popup()
@@ -192,27 +219,47 @@ impl App {
         self.last_tick = Instant::now();
         let output = if self.is_windows {
             Command::new("cmd")
-                .args(["/C", &format!("pueue --color always status {}", self.pueue_args)])
+                .args([
+                    "/C",
+                    &format!("pueue --color always status {}", self.pueue_args),
+                ])
                 .output()
                 .expect("failed to execute process")
         } else {
             Command::new("sh")
-                .args(["-c", &format!("pueue --color always status {}", self.pueue_args)])
+                .args([
+                    "-c",
+                    &format!("pueue --color always status {}", self.pueue_args),
+                ])
                 .output()
                 .expect("failed to execute process")
         };
 
         self.command_output = output.stdout;
-        self.vertical_scroll_state = self
-            .vertical_scroll_state
-            .content_length(String::from_utf8(self.command_output.clone()).unwrap().lines().count());
+        self.vertical_scroll_state = self.vertical_scroll_state.content_length(
+            String::from_utf8(self.command_output.clone())
+                .unwrap()
+                .lines()
+                .count(),
+        );
+        self.horizontal_scroll_state = self.horizontal_scroll_state.content_length(
+            strip_ansi_string(str::from_utf8(&self.command_output).unwrap())
+                .lines()
+                .map(|line| line.chars().count())
+                .max()
+                .unwrap(),
+        );
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
-        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Percentage(99)]);
-        let [instructions, content] = vertical.areas(area);
+        let vertical = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Percentage(99),
+            Constraint::Length(1),
+        ]);
+        let [instructions, content, horizontal_bar] = vertical.areas(area);
 
         let text = if self.show_popup {
             "<esc> to close"
@@ -223,7 +270,7 @@ impl App {
         frame.render_widget(paragraph, instructions);
 
         let block = Paragraph::new(self.command_output.into_text().unwrap())
-            .scroll((self.vertical_scroll as u16, 0));
+            .scroll((self.vertical_scroll as u16, self.horizontal_scroll as u16));
         frame.render_widget(block, content);
 
         frame.render_stateful_widget(
@@ -232,6 +279,20 @@ impl App {
                 .end_symbol(Some("▼")),
             content,
             &mut self.vertical_scroll_state,
+        );
+
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::HorizontalBottom).symbols(Set {
+                track: "═",
+                thumb: "━",
+                begin: "⯇ ",
+                end: " ⯈",
+            }),
+            horizontal_bar.inner(Margin {
+                vertical: 0,
+                horizontal: 1,
+            }),
+            &mut self.horizontal_scroll_state,
         );
 
         if self.show_popup {
