@@ -29,6 +29,13 @@ cargo install --git https://github.com/amatagonsk/tueue.git
 or download from [release](https://github.com/amatagonsk/tueue/releases)
 
 
+## additional hotkey
+
+`PageUp/PageDown`: scroll up/down 20  
+`Home/End`: scroll left/right 20  
+`ctrl+wheel up/down`: scroll left/right  
+
+
 
 
 ## nice tools
