@@ -315,7 +315,7 @@ impl App {
 
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::HorizontalBottom).symbols(Set {
-                track: "═",
+                track: "╌",
                 thumb: "━",
                 begin: "⯇ ",
                 end: " ⯈",
