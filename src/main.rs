@@ -1,14 +1,18 @@
 use std::{
+    io::stdout,
     process::Command,
     time::{Duration, Instant},
 };
 
 use ansi_to_tui::IntoText;
 use color_eyre::Result;
+use crossterm::{
+    ExecutableCommand,
+    event::{self, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind},
+};
 use fast_strip_ansi::*;
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
     layout::{Constraint, Flex, Layout, Margin, Position, Rect},
     style::{Color, Style},
     symbols::scrollbar::Set,
@@ -17,6 +21,7 @@ use ratatui::{
 
 fn main() -> Result<()> {
     color_eyre::install()?;
+    stdout().execute(EnableMouseCapture)?;
     let terminal = ratatui::init();
     let app_result = App::new().run(terminal);
     ratatui::restore();
@@ -76,35 +81,62 @@ impl App {
         self.run_command();
         loop {
             if event::poll(Duration::from_millis(250))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        match self.input_mode {
-                            InputMode::Normal => match key.code {
-                                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                                KeyCode::Char('i') => self.toggle_popup(),
+                match event::read()? {
+                    Event::Key(key) => {
+                        if key.kind == KeyEventKind::Press {
+                            match self.input_mode {
+                                InputMode::Normal => match key.code {
+                                    KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                                    KeyCode::Char('i') => self.toggle_popup(),
 
-                                KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
-                                KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
-                                KeyCode::PageDown => self.scroll_down(Some(20)),
-                                KeyCode::PageUp => self.scroll_up(Some(20)),
+                                    KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
+                                    KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
+                                    KeyCode::PageDown => self.scroll_down(Some(20)),
+                                    KeyCode::PageUp => self.scroll_up(Some(20)),
 
-                                KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
-                                KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
-                                KeyCode::Home => self.scroll_left(Some(20)),
-                                KeyCode::End => self.scroll_right(Some(20)),
-                                _ => {}
-                            },
-                            InputMode::Editing => match key.code {
-                                KeyCode::Enter => self.submit_pueue(),
-                                KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                                KeyCode::Backspace => self.delete_char(),
-                                KeyCode::Left => self.move_cursor_left(),
-                                KeyCode::Right => self.move_cursor_right(),
-                                KeyCode::Esc => self.toggle_popup(),
-                                _ => {}
-                            },
+                                    KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
+                                    KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
+                                    KeyCode::Home => self.scroll_left(Some(20)),
+                                    KeyCode::End => self.scroll_right(Some(20)),
+                                    _ => {}
+                                },
+                                InputMode::Editing => match key.code {
+                                    KeyCode::Enter => self.submit_pueue(),
+                                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
+                                    KeyCode::Backspace => self.delete_char(),
+                                    KeyCode::Left => self.move_cursor_left(),
+                                    KeyCode::Right => self.move_cursor_right(),
+                                    KeyCode::Esc => self.toggle_popup(),
+                                    _ => {}
+                                },
+                            }
                         }
                     }
+                    Event::Mouse(mouse) => {
+                        let ctrl_pressed = mouse.modifiers.contains(KeyModifiers::CONTROL);
+                        match mouse.kind {
+                            MouseEventKind::ScrollDown => {
+                                if ctrl_pressed {
+                                    self.scroll_right(None)
+                                } else {
+                                    self.scroll_down(None)
+                                }
+                            }
+                            MouseEventKind::ScrollUp => {
+                                if ctrl_pressed {
+                                    self.scroll_left(None)
+                                } else {
+                                    self.scroll_up(None)
+                                }
+                            }
+
+                            // mouse tilt not work
+                            MouseEventKind::ScrollLeft => self.scroll_left(None),
+                            MouseEventKind::ScrollRight => self.scroll_right(None),
+                            _ => {}
+                        }
+                    }
+                    _ => (),
                 }
             }
             if self.last_tick.elapsed() > Self::TICK_RATE && self.show_popup == false {
