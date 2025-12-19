@@ -279,7 +279,7 @@ impl App {
                 .lines()
                 .map(|line| line.chars().count())
                 .max()
-                .unwrap(),
+                .unwrap_or(1),
         );
     }
 
