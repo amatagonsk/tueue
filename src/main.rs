@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 }
 
 pub struct App {
-    show_popup: bool,
+    is_show_popup: bool,
     last_tick: Instant,
     command_output: Vec<u8>,
     is_windows: bool,
@@ -57,7 +57,7 @@ enum InputMode {
 impl App {
     fn new() -> Self {
         Self {
-            show_popup: false,
+            is_show_popup: false,
             last_tick: Instant::now(),
             command_output: Vec::new(),
             is_windows: if cfg!(target_os = "windows") {
@@ -139,7 +139,7 @@ impl App {
                     _ => (),
                 }
             }
-            if self.last_tick.elapsed() > Self::TICK_RATE && self.show_popup == false {
+            if self.last_tick.elapsed() > Self::TICK_RATE && !self.is_show_popup {
                 self.run_command();
             }
             terminal.draw(|frame| self.draw(frame))?;
@@ -190,7 +190,7 @@ impl App {
         } else {
             InputMode::Normal
         };
-        self.show_popup = !self.show_popup
+        self.is_show_popup = !self.is_show_popup
     }
 
     fn move_cursor_left(&mut self) {
@@ -293,7 +293,7 @@ impl App {
         ]);
         let [instructions, content, horizontal_bar] = vertical.areas(area);
 
-        let text = if self.show_popup {
+        let text = if self.is_show_popup {
             "<esc> to close"
         } else {
             "<i> :input / <q>, <Esc> :exit / <j> <k> , ▲ ▼ :scroll"
@@ -327,7 +327,7 @@ impl App {
             &mut self.horizontal_scroll_state,
         );
 
-        if self.show_popup {
+        if self.is_show_popup {
             let input = Paragraph::new(self.input.as_str()).block(
                 Block::bordered()
                     .title(" pueue status $args_input ")
