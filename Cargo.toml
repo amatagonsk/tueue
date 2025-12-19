@@ -1,6 +1,6 @@
 [package]
 name = "tueue"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 authors = ["amatagonsk"]
 license = "MIT"
@@ -14,12 +14,12 @@ readme = "README.md"
 ratatui ="0.29"
 color-eyre = "0.6"
 strum = { version = "0.27", features = ["derive"] }
-tokio = "1.45"
+tokio = "1.48"
 tokio-util = "0.7"
 futures = "0.3"
-serde = "1"
-serde_derive = "1"
+serde = "1.0"
+serde_derive = "1.0"
 crossterm = "0.29"
-ansi-to-tui = "7"
+ansi-to-tui = "7.0"
 fast-strip-ansi = "0.11.0"
 # [dev-dependencies]
