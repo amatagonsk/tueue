@@ -103,9 +103,12 @@ impl App {
                                 InputMode::Editing => match key.code {
                                     KeyCode::Enter => self.submit_pueue(),
                                     KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                                    KeyCode::Backspace => self.delete_char(),
+                                    KeyCode::Backspace => self.backspace_char(),
+                                    KeyCode::Delete => self.delete_char(),
                                     KeyCode::Left => self.move_cursor_left(),
                                     KeyCode::Right => self.move_cursor_right(),
+                                    KeyCode::Home => self.move_cursor_leftest(),
+                                    KeyCode::End => self.move_cursor_rightest(),
                                     KeyCode::Esc => self.toggle_popup(),
                                     _ => {}
                                 },
@@ -203,6 +206,14 @@ impl App {
         self.character_index = self.clamp_cursor(cursor_moved_right);
     }
 
+    fn move_cursor_leftest(&mut self) {
+        self.character_index = self.clamp_cursor(0);
+    }
+
+    fn move_cursor_rightest(&mut self) {
+        self.character_index = self.clamp_cursor(self.input.len());
+    }
+
     fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
@@ -221,7 +232,7 @@ impl App {
             .unwrap_or(self.input.len())
     }
 
-    fn delete_char(&mut self) {
+    fn backspace_char(&mut self) {
         let is_not_cursor_leftmost = self.character_index != 0;
         if is_not_cursor_leftmost {
             // Method "remove" is not used on the saved text for deleting the selected char.
@@ -240,6 +251,19 @@ impl App {
             // By leaving the selected one out, it is forgotten and therefore deleted.
             self.input = before_char_to_delete.chain(after_char_to_delete).collect();
             self.move_cursor_left();
+        }
+    }
+
+    fn delete_char(&mut self) {
+        let is_not_cursor_rightmost = self.character_index != (self.input.len());
+        if is_not_cursor_rightmost {
+            let current_index = self.character_index;
+            let from_left_to_current_index = current_index;
+
+            let before_char_to_delete = self.input.chars().take(from_left_to_current_index);
+            let after_char_to_delete = self.input.chars().skip(current_index + 1);
+
+            self.input = before_char_to_delete.chain(after_char_to_delete).collect();
         }
     }
 
