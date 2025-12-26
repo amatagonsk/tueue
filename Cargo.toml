@@ -1,6 +1,6 @@
 [package]
 name = "tueue"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 authors = ["amatagonsk"]
 license = "MIT"
@@ -21,5 +21,5 @@ serde = "1.0"
 serde_derive = "1.0"
 crossterm = "0.29"
 ansi-to-tui = "7.0"
-fast-strip-ansi = "0.11.0"
+fast-strip-ansi = "0.13"
 # [dev-dependencies]
