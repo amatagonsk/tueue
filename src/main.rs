@@ -267,7 +267,12 @@ impl App {
                 .expect("failed to execute process")
         };
 
-        self.command_output = output.stdout;
+        self.command_output = if output.status.success() {
+            output.stdout
+        } else {
+            output.stderr
+        };
+
         self.vertical_scroll_state = self.vertical_scroll_state.content_length(
             String::from_utf8(self.command_output.clone())
                 .unwrap()
