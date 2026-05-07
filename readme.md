@@ -16,7 +16,7 @@ similar to `watch` command.
 - pueue (daemon running)
 
 ## installation
-### crate.io
+### crates.io
 ```
 cargo install tueue
 ```
