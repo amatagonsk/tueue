@@ -1,4 +1,5 @@
 use std::{
+    env,
     io::stdout,
     process::Command,
     time::{Duration, Instant},
@@ -21,9 +22,19 @@ use ratatui::{
 
 fn main() -> Result<()> {
     color_eyre::install()?;
+    let args: Vec<_> = env::args().skip(1).collect();
+    if args.first().map_or(false, |a| a == "-h" || a == "--help") {
+        eprintln!("Usage: tueue [pueue status args...]");
+        eprintln!();
+        eprintln!("A TUI monitor for `pueue status`.");
+        eprintln!();
+        eprintln!("Arguments after the command name are passed directly to `pueue status`.");
+        eprintln!("Example: tueue -- -g mygroup");
+        return Ok(());
+    }
     stdout().execute(EnableMouseCapture)?;
     let terminal = ratatui::init();
-    let app_result = App::new().run(terminal);
+    let app_result = App::new(args.join(" ")).run(terminal);
     ratatui::restore();
     app_result
 }
@@ -54,12 +65,12 @@ enum InputMode {
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(pueue_args: String) -> Self {
         Self {
             is_show_popup: false,
             last_tick: Instant::now(),
             command_output: Vec::new(),
-            pueue_args: String::new(),
+            pueue_args,
             input: String::new(),
             character_index: 0,
             input_mode: InputMode::Normal,
