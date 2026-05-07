@@ -32,7 +32,6 @@ pub struct App {
     is_show_popup: bool,
     last_tick: Instant,
     command_output: Vec<u8>,
-    is_windows: bool,
     pueue_args: String,
 
     /// Current value of the input box
@@ -60,11 +59,6 @@ impl App {
             is_show_popup: false,
             last_tick: Instant::now(),
             command_output: Vec::new(),
-            is_windows: if cfg!(target_os = "windows") {
-                true
-            } else {
-                false
-            },
             pueue_args: String::new(),
             input: String::new(),
             character_index: 0,
@@ -273,7 +267,7 @@ impl App {
 
     fn run_command(&mut self) {
         self.last_tick = Instant::now();
-        let output = if self.is_windows {
+        let output = if cfg!(target_os = "windows") {
             Command::new("cmd")
                 .args([
                     "/C",
