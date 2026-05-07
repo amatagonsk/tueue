@@ -7,16 +7,16 @@ use std::{
 use ansi_to_tui::IntoText;
 use color_eyre::Result;
 use crossterm::{
-    ExecutableCommand,
     event::{self, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind},
+    ExecutableCommand,
 };
 use fast_strip_ansi::*;
 use ratatui::{
-    DefaultTerminal, Frame,
     layout::{Constraint, Flex, Layout, Margin, Position, Rect},
     style::{Color, Style},
     symbols::scrollbar::Set,
     widgets::{Block, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    DefaultTerminal, Frame,
 };
 
 fn main() -> Result<()> {
@@ -298,7 +298,7 @@ impl App {
         };
 
         self.vertical_scroll_state = self.vertical_scroll_state.content_length(
-            String::from_utf8(self.command_output.clone())
+            str::from_utf8(&self.command_output)
                 .unwrap()
                 .lines()
                 .count(),
