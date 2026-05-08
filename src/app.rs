@@ -57,6 +57,7 @@ impl App {
     }
 
     const TICK_RATE: Duration = Duration::from_millis(5_000);
+    const SCROLL_STEP: i8 = 20;
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> Result<()> {
         self.run_command();
         loop {
@@ -69,13 +70,13 @@ impl App {
 
                             KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
                             KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
-                            KeyCode::PageDown => self.scroll_down(Some(20)),
-                            KeyCode::PageUp => self.scroll_up(Some(20)),
+                            KeyCode::PageDown => self.scroll_down(Some(Self::SCROLL_STEP)),
+                            KeyCode::PageUp => self.scroll_up(Some(Self::SCROLL_STEP)),
 
                             KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
                             KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
-                            KeyCode::Home => self.scroll_left(Some(20)),
-                            KeyCode::End => self.scroll_right(Some(20)),
+                            KeyCode::Home => self.scroll_left(Some(Self::SCROLL_STEP)),
+                            KeyCode::End => self.scroll_right(Some(Self::SCROLL_STEP)),
                             _ => {}
                         },
                         InputMode::Editing => match key.code {
