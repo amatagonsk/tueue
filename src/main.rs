@@ -11,7 +11,7 @@ use app::App;
 fn main() -> Result<()> {
     color_eyre::install()?;
     let args: Vec<_> = env::args().skip(1).collect();
-    if args.first().map_or(false, |a| a == "-h" || a == "--help") {
+    if args.first().is_some_and(|a| a == "-h" || a == "--help") {
         eprintln!("Usage: tueue [pueue status args...]");
         eprintln!();
         eprintln!("A TUI monitor for `pueue status`.");

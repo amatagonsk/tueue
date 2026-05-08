@@ -62,39 +62,35 @@ impl App {
         loop {
             if event::poll(Duration::from_millis(250))? {
                 match event::read()? {
-                    Event::Key(key) => {
-                        if key.kind == KeyEventKind::Press {
-                            match self.input_mode {
-                                InputMode::Normal => match key.code {
-                                    KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                                    KeyCode::Char('i') => self.toggle_popup(),
+                    Event::Key(key) if key.kind == KeyEventKind::Press => match self.input_mode {
+                        InputMode::Normal => match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            KeyCode::Char('i') => self.toggle_popup(),
 
-                                    KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
-                                    KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
-                                    KeyCode::PageDown => self.scroll_down(Some(20)),
-                                    KeyCode::PageUp => self.scroll_up(Some(20)),
+                            KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
+                            KeyCode::Char('k') | KeyCode::Up => self.scroll_up(None),
+                            KeyCode::PageDown => self.scroll_down(Some(20)),
+                            KeyCode::PageUp => self.scroll_up(Some(20)),
 
-                                    KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
-                                    KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
-                                    KeyCode::Home => self.scroll_left(Some(20)),
-                                    KeyCode::End => self.scroll_right(Some(20)),
-                                    _ => {}
-                                },
-                                InputMode::Editing => match key.code {
-                                    KeyCode::Enter => self.submit_pueue(),
-                                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                                    KeyCode::Backspace => self.backspace_char(),
-                                    KeyCode::Delete => self.delete_char(),
-                                    KeyCode::Left => self.move_cursor_left(),
-                                    KeyCode::Right => self.move_cursor_right(),
-                                    KeyCode::Home => self.move_cursor_leftest(),
-                                    KeyCode::End => self.move_cursor_rightest(),
-                                    KeyCode::Esc => self.toggle_popup(),
-                                    _ => {}
-                                },
-                            }
-                        }
-                    }
+                            KeyCode::Char('h') | KeyCode::Left => self.scroll_left(None),
+                            KeyCode::Char('l') | KeyCode::Right => self.scroll_right(None),
+                            KeyCode::Home => self.scroll_left(Some(20)),
+                            KeyCode::End => self.scroll_right(Some(20)),
+                            _ => {}
+                        },
+                        InputMode::Editing => match key.code {
+                            KeyCode::Enter => self.submit_pueue(),
+                            KeyCode::Char(to_insert) => self.enter_char(to_insert),
+                            KeyCode::Backspace => self.backspace_char(),
+                            KeyCode::Delete => self.delete_char(),
+                            KeyCode::Left => self.move_cursor_left(),
+                            KeyCode::Right => self.move_cursor_right(),
+                            KeyCode::Home => self.move_cursor_leftest(),
+                            KeyCode::End => self.move_cursor_rightest(),
+                            KeyCode::Esc => self.toggle_popup(),
+                            _ => {}
+                        },
+                    },
                     Event::Mouse(mouse) => {
                         let ctrl_pressed = mouse.modifiers.contains(KeyModifiers::CONTROL);
                         match mouse.kind {
