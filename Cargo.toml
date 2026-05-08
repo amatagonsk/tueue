@@ -8,7 +8,7 @@ description = "tueue is tui pueue status monitor."
 repository = "https://github.com/amatagonsk/tueue"
 keywords = ["pueue", "terminal", "ratatui", "tui"]
 categories = ["command-line-utilities"]
-readme = "README.md"
+readme = "readme.md"
 
 [dependencies]
 ratatui ="0.29"
