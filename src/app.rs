@@ -321,7 +321,7 @@ impl App {
             Constraint::Fill(1),
             Constraint::Length(1),
         ]));
-        let [horizontal_bar, _corner] = bar_row.layout(&Layout::horizontal([
+        let [horizontal_bar, _] = bar_row.layout(&Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Length(1),
         ]));
