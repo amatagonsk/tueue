@@ -16,3 +16,4 @@ color-eyre = "0.6"
 crossterm = "0.29"
 ansi-to-tui = "8.0"
 fast-strip-ansi = "0.13"
+tui-scrollbar = { version = "0.2", features = ["crossterm"] }

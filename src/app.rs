@@ -8,14 +8,23 @@ use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
 use fast_strip_ansi::*;
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Position},
-    style::{Color, Style},
-    symbols::scrollbar::Set,
-    widgets::{Block, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     DefaultTerminal, Frame,
+    layout::{Constraint, Layout, Margin, Position, Rect},
+    style::{Color, Style},
+    widgets::{Block, Clear, Paragraph, Wrap},
+};
+use tui_scrollbar::{
+    ScrollBar, ScrollBarArrows, ScrollBarInteraction, ScrollCommand, ScrollLengths,
 };
 
 use crate::ui;
+
+#[derive(Debug, Clone, Copy)]
+struct LayoutState {
+    content: Rect,
+    vertical_bar: Rect,
+    horizontal_bar: Rect,
+}
 
 pub struct App {
     is_show_popup: bool,
@@ -27,10 +36,13 @@ pub struct App {
     character_index: usize,
     input_mode: InputMode,
 
-    pub vertical_scroll_state: ScrollbarState,
-    pub horizontal_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
     pub horizontal_scroll: usize,
+    vertical_interaction: ScrollBarInteraction,
+    horizontal_interaction: ScrollBarInteraction,
+    layout: Option<LayoutState>,
+    vertical_content_len: usize,
+    horizontal_content_len: usize,
 }
 
 #[derive(PartialEq, Eq)]
@@ -49,10 +61,13 @@ impl App {
             pueue_args,
             character_index: 0,
             input_mode: InputMode::Normal,
-            vertical_scroll_state: ScrollbarState::new(0),
             vertical_scroll: 0,
-            horizontal_scroll_state: ScrollbarState::new(0),
             horizontal_scroll: 0,
+            vertical_interaction: ScrollBarInteraction::new(),
+            horizontal_interaction: ScrollBarInteraction::new(),
+            layout: None,
+            vertical_content_len: 0,
+            horizontal_content_len: 0,
         }
     }
 
@@ -92,30 +107,7 @@ impl App {
                             _ => {}
                         },
                     },
-                    Event::Mouse(mouse) => {
-                        let ctrl_pressed = mouse.modifiers.contains(KeyModifiers::CONTROL);
-                        match mouse.kind {
-                            MouseEventKind::ScrollDown => {
-                                if ctrl_pressed {
-                                    self.scroll_right(None)
-                                } else {
-                                    self.scroll_down(None)
-                                }
-                            }
-                            MouseEventKind::ScrollUp => {
-                                if ctrl_pressed {
-                                    self.scroll_left(None)
-                                } else {
-                                    self.scroll_up(None)
-                                }
-                            }
-
-                            // mouse tilt not work
-                            MouseEventKind::ScrollLeft => self.scroll_left(None),
-                            MouseEventKind::ScrollRight => self.scroll_right(None),
-                            _ => {}
-                        }
-                    }
+                    Event::Mouse(mouse) => self.handle_mouse_event(mouse),
                     _ => (),
                 }
             }
@@ -130,32 +122,76 @@ impl App {
         self.vertical_scroll = self
             .vertical_scroll
             .saturating_add(scroll_val.unwrap_or(1) as usize);
-        self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
     }
 
     fn scroll_up(&mut self, scroll_val: Option<i8>) {
         self.vertical_scroll = self
             .vertical_scroll
             .saturating_sub(scroll_val.unwrap_or(1) as usize);
-        self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
     }
 
     fn scroll_left(&mut self, scroll_val: Option<i8>) {
         self.horizontal_scroll = self
             .horizontal_scroll
             .saturating_sub(scroll_val.unwrap_or(1) as usize);
-        self.horizontal_scroll_state = self
-            .horizontal_scroll_state
-            .position(self.horizontal_scroll);
     }
 
     fn scroll_right(&mut self, scroll_val: Option<i8>) {
         self.horizontal_scroll = self
             .horizontal_scroll
             .saturating_add(scroll_val.unwrap_or(1) as usize);
-        self.horizontal_scroll_state = self
-            .horizontal_scroll_state
-            .position(self.horizontal_scroll);
+    }
+
+    fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) {
+        let Some(layout) = self.layout else {
+            return;
+        };
+
+        let ctrl_pressed = event.modifiers.contains(KeyModifiers::CONTROL);
+        if ctrl_pressed {
+            match event.kind {
+                MouseEventKind::ScrollDown => {
+                    self.scroll_right(None);
+                    return;
+                }
+                MouseEventKind::ScrollUp => {
+                    self.scroll_left(None);
+                    return;
+                }
+                _ => {}
+            }
+        }
+
+        let v_viewport = layout.content.height as usize;
+        let h_viewport = layout.content.width as usize;
+
+        let v_lengths = ScrollLengths {
+            content_len: self.vertical_content_len.max(1),
+            viewport_len: v_viewport.max(1),
+        };
+        let v_scrollbar = ScrollBar::vertical(v_lengths).offset(self.vertical_scroll);
+
+        if let Some(ScrollCommand::SetOffset(offset)) = v_scrollbar.handle_mouse_event(
+            layout.vertical_bar,
+            event,
+            &mut self.vertical_interaction,
+        ) {
+            self.vertical_scroll = offset;
+        }
+
+        let h_lengths = ScrollLengths {
+            content_len: self.horizontal_content_len.max(1),
+            viewport_len: h_viewport.max(1),
+        };
+        let h_scrollbar = ScrollBar::horizontal(h_lengths).offset(self.horizontal_scroll);
+
+        if let Some(ScrollCommand::SetOffset(offset)) = h_scrollbar.handle_mouse_event(
+            layout.horizontal_bar,
+            event,
+            &mut self.horizontal_interaction,
+        ) {
+            self.horizontal_scroll = offset;
+        }
     }
 
     fn submit_pueue(&mut self) {
@@ -262,19 +298,16 @@ impl App {
             output.stderr
         };
 
-        self.vertical_scroll_state = self.vertical_scroll_state.content_length(
-            str::from_utf8(&self.command_output)
-                .unwrap()
-                .lines()
-                .count(),
-        );
-        self.horizontal_scroll_state = self.horizontal_scroll_state.content_length(
+        self.vertical_content_len = str::from_utf8(&self.command_output)
+            .unwrap()
+            .lines()
+            .count();
+        self.horizontal_content_len =
             strip_ansi_string(str::from_utf8(&self.command_output).unwrap())
                 .lines()
                 .map(|line| line.chars().count())
                 .max()
-                .unwrap_or(1),
-        );
+                .unwrap_or(1);
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -285,7 +318,16 @@ impl App {
             Constraint::Percentage(99),
             Constraint::Length(1),
         ]);
-        let [instructions, content, horizontal_bar] = vertical.areas(area);
+        let [instructions, content_row, bar_row] = vertical.areas(area);
+
+        let [content, vertical_bar] = content_row.layout(&Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ]));
+        let [horizontal_bar, _corner] = bar_row.layout(&Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ]));
 
         let text = if self.is_show_popup {
             "<esc> to close"
@@ -299,27 +341,36 @@ impl App {
             .scroll((self.vertical_scroll as u16, self.horizontal_scroll as u16));
         frame.render_widget(block, content);
 
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("▲"))
-                .end_symbol(Some("▼")),
+        let h_bar_inner = horizontal_bar.inner(Margin {
+            vertical: 0,
+            horizontal: 1,
+        });
+        self.layout = Some(LayoutState {
             content,
-            &mut self.vertical_scroll_state,
-        );
+            vertical_bar,
+            horizontal_bar: h_bar_inner,
+        });
 
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::HorizontalBottom).symbols(Set {
-                track: "╌",
-                thumb: "━",
-                begin: "⯇ ",
-                end: " ⯈",
-            }),
-            horizontal_bar.inner(Margin {
-                vertical: 0,
-                horizontal: 1,
-            }),
-            &mut self.horizontal_scroll_state,
-        );
+        let v_viewport = content.height as usize;
+        let h_viewport = content.width as usize;
+
+        let v_lengths = ScrollLengths {
+            content_len: self.vertical_content_len.max(1),
+            viewport_len: v_viewport.max(1),
+        };
+        let v_scrollbar = ScrollBar::vertical(v_lengths)
+            .offset(self.vertical_scroll)
+            .arrows(ScrollBarArrows::Both);
+        frame.render_widget(&v_scrollbar, vertical_bar);
+
+        let h_lengths = ScrollLengths {
+            content_len: self.horizontal_content_len.max(1),
+            viewport_len: h_viewport.max(1),
+        };
+        let h_scrollbar = ScrollBar::horizontal(h_lengths)
+            .offset(self.horizontal_scroll)
+            .arrows(ScrollBarArrows::Both);
+        frame.render_widget(&h_scrollbar, h_bar_inner);
 
         if self.is_show_popup {
             let input = Paragraph::new(self.input.as_str()).block(
