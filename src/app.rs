@@ -121,7 +121,8 @@ impl App {
     fn scroll_down(&mut self, scroll_val: Option<i8>) {
         self.vertical_scroll = self
             .vertical_scroll
-            .saturating_add(scroll_val.unwrap_or(1) as usize);
+            .saturating_add(scroll_val.unwrap_or(1) as usize)
+            .min(self.max_vertical_offset());
     }
 
     fn scroll_up(&mut self, scroll_val: Option<i8>) {
@@ -139,7 +140,18 @@ impl App {
     fn scroll_right(&mut self, scroll_val: Option<i8>) {
         self.horizontal_scroll = self
             .horizontal_scroll
-            .saturating_add(scroll_val.unwrap_or(1) as usize);
+            .saturating_add(scroll_val.unwrap_or(1) as usize)
+            .min(self.max_horizontal_offset());
+    }
+
+    fn max_vertical_offset(&self) -> usize {
+        self.vertical_content_len
+            .saturating_sub(self.layout.map_or(0, |l| l.content.height as usize))
+    }
+
+    fn max_horizontal_offset(&self) -> usize {
+        self.horizontal_content_len
+            .saturating_sub(self.layout.map_or(0, |l| l.content.width as usize))
     }
 
     fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) {
