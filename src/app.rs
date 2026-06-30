@@ -5,7 +5,7 @@ use std::{
 
 use ansi_to_tui::IntoText;
 use color_eyre::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use fast_strip_ansi::*;
 use ratatui::{
     DefaultTerminal, Frame,
@@ -81,6 +81,9 @@ impl App {
                     Event::Key(key) if key.kind == KeyEventKind::Press => match self.input_mode {
                         InputMode::Normal => match key.code {
                             KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                return Ok(());
+                            }
                             KeyCode::Char('i') => self.toggle_popup(),
 
                             KeyCode::Char('j') | KeyCode::Down => self.scroll_down(None),
@@ -96,6 +99,9 @@ impl App {
                         },
                         InputMode::Editing => match key.code {
                             KeyCode::Enter => self.submit_pueue(),
+                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                return Ok(());
+                            }
                             KeyCode::Char(to_insert) => self.enter_char(to_insert),
                             KeyCode::Backspace => self.backspace_char(),
                             KeyCode::Delete => self.delete_char(),
