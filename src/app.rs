@@ -5,7 +5,7 @@ use std::{
 
 use ansi_to_tui::IntoText;
 use color_eyre::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use fast_strip_ansi::*;
 use ratatui::{
     DefaultTerminal, Frame,
@@ -146,21 +146,6 @@ impl App {
         let Some(layout) = self.layout else {
             return;
         };
-
-        let ctrl_pressed = event.modifiers.contains(KeyModifiers::CONTROL);
-        if ctrl_pressed {
-            match event.kind {
-                MouseEventKind::ScrollDown => {
-                    self.scroll_right(None);
-                    return;
-                }
-                MouseEventKind::ScrollUp => {
-                    self.scroll_left(None);
-                    return;
-                }
-                _ => {}
-            }
-        }
 
         let v_viewport = layout.content.height as usize;
         let h_viewport = layout.content.width as usize;
