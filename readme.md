@@ -43,3 +43,5 @@ or download from [release](https://github.com/amatagonsk/tueue/releases)
 [pueue](https://github.com/Nukesor/pueue)  
 
 [ratatui](https://github.com/ratatui-org/ratatui)  
+
+[tui-widgets](https://github.com/ratatui/tui-widgets)  
